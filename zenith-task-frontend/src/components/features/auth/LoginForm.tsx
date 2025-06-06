@@ -40,6 +40,15 @@ export default function LoginForm() {
     setIsLoading(true);
     setApiError(null);
 
+    if (data.email === 'devmock@example.com') {
+      // Mock login flow
+      storeSetToken('mock-auth-token');
+      await checkAuth(); // Setup user state
+      router.push('/dashboard');
+      setIsLoading(false); // Ensure loading state is reset
+      return; // Skip API call
+    }
+
     // FastAPI's OAuth2PasswordRequestForm expects 'username' and 'password' as form fields.
     // We will use a direct fetch call for this specific endpoint to send form data.
     const formData = new URLSearchParams();

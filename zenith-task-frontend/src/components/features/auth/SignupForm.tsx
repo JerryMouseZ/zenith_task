@@ -57,49 +57,21 @@ export default function SignupForm() {
       const registeredUser: User = await registerUser(userData);
       console.log('User registered:', registeredUser);
 
-      // Step 2: Automatically log in the user after successful registration
-      // This requires fetching a token using the same credentials.
-      const formData = new URLSearchParams();
-      formData.append('username', data.email);
-      formData.append('password', data.password);
-
-      const tokenResponse = await fetch('/api/auth/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString(),
-      });
-
-      if (!tokenResponse.ok) {
-        // If token retrieval fails after successful registration,
-        // redirect to login page with a message.
-        const errorData = await tokenResponse.json().catch(() => ({ detail: 'Registration successful, but auto-login failed. Please log in manually.' }));
-        // It's a bit of an edge case. User is registered but not logged in.
-        // For simplicity, we'll show the error and they can try logging in.
-        // A better UX might involve more specific guidance.
-        setApiError(errorData.detail || 'Registration successful, but auto-login failed.');
-        setIsLoading(false);
-        // Optionally redirect to login after a delay or with a button
-        // setTimeout(() => router.push('/login'), 3000);
-        return;
-      }
-
-      const tokenData: Token = await tokenResponse.json();
-      storeSetToken(tokenData.access_token);
-      await checkAuth();
-
-      // TODO: Update user state in global store (e.g., Zustand) if needed
-
-      router.push('/dashboard'); // Redirect to dashboard on successful registration and login
+      // Auto-login removed. Set success message and redirect to login.
+      setApiError("Registration successful! Please log in to continue."); // Using apiError to display this message
+      setIsLoading(false); // Stop loading before redirect
+      router.push('/auth/login');
+      // No return needed here as it's the end of the try block for the success path.
     } catch (error) {
       if (error instanceof Error) {
         setApiError(error.message);
       } else {
         setApiError('An unexpected error occurred during signup.');
       }
-      setIsLoading(false);
+      setIsLoading(false); // Ensure loading is stopped on error
     }
+    // The finally block for setIsLoading(false) from original code is removed
+    // as it's now handled in both success and error paths of the try-catch.
   };
 
   return (
