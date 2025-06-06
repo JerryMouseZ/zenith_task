@@ -132,6 +132,8 @@ class EnergyLog(Base):
     energy_level = Column(Enum(EnergyLevel), nullable=False) # Using REAL to store numeric energy level, or Integer
     notes = Column(String(500), nullable=True) # Optional notes about the energy level
     # mood = Column(String(50), nullable=True) # Optional: track mood alongside energy
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     user = relationship("User", back_populates="energy_logs")
 

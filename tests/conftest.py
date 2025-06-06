@@ -11,7 +11,8 @@ sys.path.insert(0, PROJECT_ROOT)
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from app.main import app  # Import your FastAPI app
-from app.database import Base, get_db, create_db_and_tables
+from app.database import Base, create_db_and_tables # get_db is in dependencies
+from app.dependencies import get_db # Correct import for get_db
 import os
 
 # Use an in-memory SQLite database for testing
@@ -53,10 +54,10 @@ def client(db_session):
     """
 
     def override_get_db():
-        try:
-            yield db_session
-        finally:
-            db_session.close()
+        # The db_session fixture itself handles opening and closing the session
+        # and transaction management (rollback).
+        # The override should just yield the session provided by the fixture.
+        yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
 

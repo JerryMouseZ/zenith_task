@@ -27,7 +27,8 @@ app.include_router(tags.router, prefix="/api/tags", tags=["Tags"])
 # app.include_router(focus_sessions.router, prefix="/api/focus-sessions", tags=["Focus Sessions"]) # Removed
 # app.include_router(energy_logs.router, prefix="/api/energy-logs", tags=["Energy Logs"]) # Removed
 # app.include_router(ai.router, prefix="/api/ai", tags=["AI"]) # Removed
-# app.include_router(monitoring.router, prefix="/api/monitoring", tags=["Monitoring"]) # Removed
+from app.routers import monitoring # Ensure monitoring is imported
+app.include_router(monitoring.monitoring_router) # Prefix is already defined in monitoring_router
 
 
 @app.get("/", tags=["Root"])
