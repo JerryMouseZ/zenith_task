@@ -5,8 +5,7 @@ import useSWR from 'swr';
 import { Project, Task } from '@/types/api';
 import { apiClient } from '@/lib/apiClient';
 import ProjectDetailView from '@/components/features/project/ProjectDetailView';
-// Placeholder for Task List / Kanban for this project
-// import ProjectTaskList from '@/components/features/task/ProjectTaskList';
+import KanbanBoard from '@/components/features/kanban/KanbanBoard';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'; // Added Card components
 import { Loader2 } from 'lucide-react';
@@ -23,9 +22,7 @@ export default function SpecificProjectPage() {
   const { data: project, error: projectError, isLoading: projectIsLoading, mutate: mutateProject } =
     useSWR<Project>(projectId ? `/projects/${projectId}` : null, projectFetcher);
 
-  // TODO: Add SWR for tasks, e.g., /tasks?project_id=${projectId}
-  const { data: tasks, error: tasksError, isLoading: tasksIsLoading } =
-    useSWR<Task[]>(projectId ? `/tasks/?project_id=${projectId}` : null, tasksFetcher); // Corrected query param format
+
 
   if (projectIsLoading) {
     return (
@@ -64,24 +61,7 @@ export default function SpecificProjectPage() {
     );
   }
 
-  // Basic task list display (can be replaced with Kanban or more detailed list later)
-  const renderTasks = () => {
-    if (tasksIsLoading) return <p className="text-muted-foreground"><Loader2 className="inline-block h-4 w-4 animate-spin mr-1" /> Loading tasks...</p>;
-    if (tasksError) return <p className="text-red-500">Error loading tasks: {tasksError.message}</p>; // Display task-specific error
-    if (!tasks || tasks.length === 0) return <p className="text-muted-foreground">No tasks in this project yet.</p>;
 
-    return (
-      <div className="space-y-2 mt-4">
-        <ul className="list-disc pl-5">
-          {tasks.map(task => (
-            <li key={task.id} className="text-sm">
-              {task.title} - <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700">{task.status}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -91,18 +71,16 @@ export default function SpecificProjectPage() {
          </Button>
       </div>
 
-      <ProjectDetailView project={project} /> {/* Pass the fetched project here */}
+      <ProjectDetailView project={project} />
 
-      {/* Placeholder for where project tasks will be displayed, e.g., a Kanban board or task list */}
       <Card>
         <CardHeader>
           <CardTitle>Project Tasks</CardTitle>
-          <CardDescription>Tasks associated with the project &quot;{project.name}&quot;.</CardDescription>
+          <CardDescription>Manage tasks for &quot;{project.name}&quot; using the board below.</CardDescription>
         </CardHeader>
         <CardContent>
-          {renderTasks()}
-          {/* Later, this could be: <ProjectTaskList projectId={project.id} /> */}
-          {/* Or a Kanban board: <KanbanBoard projectId={project.id} /> */}
+          {/* tasks SWR is now handled within KanbanBoard */}
+          <KanbanBoard projectId={project.id} />
         </CardContent>
       </Card>
     </div>

@@ -84,6 +84,7 @@ export interface Task {
   id: number;
   user_id: number;
   project_id?: number | null;
+  project?: Project | null; // Added to support embedding project details
   parent_task_id?: number | null;
   title: string;
   description?: string | null;
@@ -183,6 +184,26 @@ export interface TaskCompletionReport {
   period_type: string; // daily, weekly
   data: TaskCompletionReportDataPoint[];
   project_id?: number;
+}
+
+// Comment types based on api.md section 4
+export interface Comment {
+  id: number;
+  task_id: number;
+  user_id: number;
+  content: string;
+  created_at: string; // ISO datetime string
+  updated_at: string; // ISO datetime string
+  user?: User; // Optional: if user details are embedded in the response
+}
+
+export interface CommentCreate {
+  content: string;
+  // task_id will be part of the URL, user_id from auth
+}
+
+export interface CommentUpdate {
+  content?: string;
 }
 
 // Preferences can be generic for now

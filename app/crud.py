@@ -38,7 +38,8 @@ def create_user(db: Session, user_create: schemas.UserCreate) -> models.User:
         hashed_password=hashed_password
     )
     db.add(db_user)
-    db.commit()
+    # db.commit() # Let the session manager (e.g., test fixture) handle commit/rollback
+    db.flush() # Ensure db_user gets an ID and is in current transaction
     db.refresh(db_user)
     return db_user
 

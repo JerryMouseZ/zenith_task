@@ -158,6 +158,9 @@ def read_energy_logs_endpoint( # Renamed
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
 ):
+    if date_end is not None and date_end.time() == datetime.time.min:
+        date_end = datetime.datetime.combine(date_end.date(), datetime.time.max)
+
     return crud.get_energy_logs(
         db=db, user_id=current_user.id,
         timestamp_after=date_start, timestamp_before=date_end,

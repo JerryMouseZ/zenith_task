@@ -10,9 +10,10 @@ import { CSS } from '@dnd-kit/utilities';
 interface KanbanCardProps {
   task: Task;
   onClick?: (task: Task) => void; // For opening task detail modal
+  isOverlay?: boolean;
 }
 
-export default function KanbanCard({ task, onClick }: KanbanCardProps) {
+export default function KanbanCard({ task, onClick, isOverlay }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -25,8 +26,10 @@ export default function KanbanCard({ task, onClick }: KanbanCardProps) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging || isOverlay ? 0.8 : 1,
     // cursor: 'grab', // Managed by dnd-kit
+    boxShadow: isOverlay ? '0 0 15px rgba(0,0,0,0.2)' : undefined, // Add shadow when overlay
+    zIndex: isOverlay ? 1000 : undefined, // Ensure overlay is on top
   };
 
   const priorityMap: { [key: number]: string } = {
@@ -46,8 +49,8 @@ export default function KanbanCard({ task, onClick }: KanbanCardProps) {
   return (
     <div ref={setNodeRef} style={style} {...attributes} >
       <Card
-        className="mb-3 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow duration-150 cursor-pointer" // Added cursor-pointer
-        onClick={() => onClick?.(task)}
+        className={`mb-3 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md transition-shadow duration-150 ${!isOverlay ? 'cursor-pointer' : 'cursor-grabbing'}`}
+        onClick={() => !isOverlay && onClick?.(task)} // Only allow click if not an overlay
       >
         <CardHeader className="p-3">
           <div className="flex justify-between items-start">
