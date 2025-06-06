@@ -1,5 +1,5 @@
 # SQLAlchemy models for database tables
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, REAL, JSON, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, REAL, JSON, Enum, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from .database import Base
 import datetime
@@ -21,11 +21,13 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    preferences = Column(JSON, nullable=True) # Added user preferences field
 
     projects = relationship("Project", back_populates="owner")
     tasks = relationship("Task", back_populates="assignee") # If tasks can be directly assigned to users
     focus_sessions = relationship("FocusSession", back_populates="user")
     energy_logs = relationship("EnergyLog", back_populates="user")
+    tags = relationship("Tag", back_populates="owner", cascade="all, delete-orphan") # User's own tags
 
 class Project(Base):
     __tablename__ = "projects"
@@ -36,6 +38,8 @@ class Project(Base):
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    is_archived = Column(Boolean, default=False, nullable=False)
+    archived_at = Column(DateTime, nullable=True)
 
     owner = relationship("User", back_populates="projects")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
@@ -59,16 +63,32 @@ class Task(Base):
     tags = relationship("Tag", secondary=task_tag_association, back_populates="tasks")
     focus_sessions = relationship("FocusSession", back_populates="task")
 
+    # Fields for subtasks and ordering
+    parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    parent = relationship("Task", back_populates="sub_tasks", remote_side=[id]) # For parent task
+    sub_tasks = relationship("Task", back_populates="parent", cascade="all, delete-orphan") # For list of sub_tasks
+
+    order_in_list = Column(Float, nullable=True) # For custom sorting
+
+    # Fields for recurring tasks
+    is_recurring = Column(Boolean, default=False, nullable=False)
+    recurring_schedule = Column(String, nullable=True) # E.g., RRULE string or cron expression
+
+
 class Tag(Base):
     __tablename__ = "tags"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), unique=True, index=True, nullable=False)
+    name = Column(String(50), index=True, nullable=False) # Removed unique=True here
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True) # Added user_id
     color = Column(String(7), nullable=True) # E.g., '#RRGGBB'
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
+    owner = relationship("User", back_populates="tags") # Added relationship to User
     tasks = relationship("Task", secondary=task_tag_association, back_populates="tags")
+
+    __table_args__ = (UniqueConstraint('user_id', 'name', name='uq_user_tag_name'),) # Added unique constraint for user_id and name
 
 # TaskTag is defined by the task_tag_association table, no separate class needed
 # unless it has its own columns beyond the foreign keys.

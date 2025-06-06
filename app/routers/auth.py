@@ -10,7 +10,6 @@ from ..dependencies import get_db
 from ..core.config import settings # Import global settings
 
 router = APIRouter(
-    prefix="/api/auth", # Standard prefix for auth routes
     tags=["authentication"], # Tag for API documentation
 )
 
@@ -47,7 +46,13 @@ async def login_for_access_token(
     """
     # It's good practice to have an `authenticate_user` function in crud.py,
     # but for now, we directly use get_user_by_username and verify_password.
+    # Attempt to authenticate by username first
     user = crud.get_user_by_username(db, username=form_data.username)
+    if not user:
+        # If not found by username, try by email
+        # This assumes the 'username' field in the form might contain an email
+        user = crud.get_user_by_email(db, email=form_data.username)
+
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
