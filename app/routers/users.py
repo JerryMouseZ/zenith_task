@@ -108,21 +108,11 @@ async def get_user_preferences(
 ):
     """
     Get current user's application preferences.
-    (Placeholder: Assumes User model has a 'preferences' JSON field)
+    The User model has a 'preferences' JSON field.
     """
-    # Placeholder implementation:
-    if hasattr(current_user, 'preferences') and current_user.preferences:
-        # If 'preferences' is a JSON string in DB, it might be automatically parsed by SQLAlchemy JSON type.
-        # If it's a string, you might need: import json; return json.loads(current_user.preferences)
-        if isinstance(current_user.preferences, Dict):
-             return current_user.preferences
-        else: # Assuming it might be stored as a string; adapt as necessary
-            try:
-                import json
-                return json.loads(str(current_user.preferences)) if current_user.preferences else {}
-            except json.JSONDecodeError:
-                return {} # Or raise error
-    return {"message": "Preferences feature not fully implemented or no preferences set."}
+    # current_user.preferences will be a dict if the model field is JSON and ORM is working.
+    # If no preferences are set, it should be None (as defined in the model User.preferences).
+    return current_user.preferences if current_user.preferences is not None else {}
 
 
 @router.put("/me/preferences", response_model=Dict[str, Any])
@@ -133,32 +123,13 @@ async def update_user_preferences(
 ):
     """
     Update current user's application preferences.
-    (Placeholder: Assumes User model has a 'preferences' JSON field)
+    The User model has a 'preferences' JSON field.
     """
-    # Placeholder implementation:
-    if hasattr(current_user, 'preferences'):
-        # If 'preferences' field expects a JSON string:
-        # import json
-        # current_user.preferences = json.dumps(preferences)
-        # If using SQLAlchemy's JSON type, direct assignment might work:
-        current_user.preferences = preferences # type: ignore
-        db.commit()
-        db.refresh(current_user)
-        # Re-fetch or parse for response
-        if isinstance(current_user.preferences, Dict):
-             return current_user.preferences
-        else: # Assuming it might be stored as a string; adapt as necessary
-            try:
-                import json
-                return json.loads(str(current_user.preferences)) if current_user.preferences else {}
-            except json.JSONDecodeError:
-                return {}
-
-    # If the 'preferences' attribute doesn't exist, this won't work.
-    # You would typically update the user model then use:
-    # crud.update_user(db, db_user=current_user, user_update=schemas.UserUpdate(preferences=preferences))
-    # This requires UserUpdate schema to support `preferences` field.
-    raise HTTPException(status_code=501, detail="Preferences feature not fully implemented (User model needs 'preferences' field).")
+    current_user.preferences = preferences
+    db.add(current_user) # Add to session before commit
+    db.commit()
+    db.refresh(current_user)
+    return current_user.preferences if current_user.preferences is not None else {}
 
 # Added async to all route functions for consistency with FastAPI best practices.
 # Changed prefix to /api/users.

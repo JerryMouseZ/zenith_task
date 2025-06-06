@@ -23,30 +23,29 @@ async def create_new_task(
     """
     Create a new task.
     The project specified in `task_create.project_id` must belong to the current user.
-    `assignee_id` can be optionally set in `task_create`.
+    `assignee_id`, `parent_task_id`, etc., can be set in `task_create`.
     """
+    # Verify project_id exists and user has access to it.
     project = crud.get_project(db, project_id=task_create.project_id, user_id=current_user.id)
     if not project:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, # Or 404 if project_id itself is invalid
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found or user does not have access to it.",
         )
-
-    # crud.create_task expects project_id and optionally assignee_id separately from task_create fields
-    # if schemas.TaskCreate includes assignee_id, it will be used.
-    created_task = crud.create_task(db=db, task_create=task_create, project_id=task_create.project_id, assignee_id=getattr(task_create, 'assignee_id', None))
+    # crud.create_task now expects task_create to contain all necessary fields including project_id
+    created_task = crud.create_task(db=db, task_create=task_create)
     return created_task
 
 @router.get("/", response_model=List[schemas.Task])
 async def read_user_tasks(
     project_id: Optional[int] = None,
-    # parent_task_id: Optional[int] = None, # Assuming Task model has parent_id
-    completed: Optional[bool] = None, # Renamed from 'status' for clarity with boolean field
+    parent_task_id: Optional[int] = Query(None, description="Filter tasks by parent task ID"),
+    completed: Optional[bool] = None,
     priority: Optional[int] = None,
     due_date_start: Optional[datetime.datetime] = None,
     due_date_end: Optional[datetime.datetime] = None,
-    # is_recurring: Optional[bool] = None, # Assuming Task model has is_recurring
-    # tags: Optional[List[str]] = None, # Filtering by tag names/IDs. Needs List from Query: from fastapi import Query; tags: Optional[List[str]] = Query(None)
+    is_recurring: Optional[bool] = Query(None, description="Filter tasks by recurring status"),
+    tags: Optional[List[int]] = Query(None, description="Filter tasks by a list of tag IDs (task must have at least one of the tags)"),
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -167,8 +166,27 @@ async def create_subtask_for_task(
 
     # This part is highly dependent on how `parent_id` is structured in models and schemas.
     # For now, raising NotImplementedError as it needs model/schema/CRUD updates.
-    raise HTTPException(status_code=501, detail="Subtask creation: parent_id handling in model/schema/CRUD needs implementation.")
-    # return created_subtask
+    # The schema `schemas.TaskCreate` now includes `parent_task_id`.
+    # The crud function `crud.create_task` now uses `parent_task_id` from `task_create`.
+
+    # Ensure the project_id in subtask_create matches the parent's project_id,
+    # or set it explicitly. The latter is safer.
+    # Also, ensure other fields like assignee_id are handled correctly if they should be inherited or explicitly set.
+
+    # Create a new TaskCreate schema for the subtask, ensuring correct project_id and parent_task_id
+    subtask_data_for_create = subtask_create.dict(exclude_unset=True) # Get only fields that were set
+    subtask_data_for_create['project_id'] = parent_task.project_id
+    subtask_data_for_create['parent_task_id'] = task_id
+
+    # Ensure all required fields for TaskCreate are present
+    # title is required by TaskBase which TaskCreate inherits
+    if 'title' not in subtask_data_for_create:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Subtask title is required.")
+
+    final_subtask_create_schema = schemas.TaskCreate(**subtask_data_for_create)
+
+    created_subtask = crud.create_task(db=db, task_create=final_subtask_create_schema)
+    return created_subtask
 
 
 @router.put("/reorder", response_model=List[schemas.Task])
@@ -178,16 +196,20 @@ async def reorder_tasks_batch(
     current_user: models.User = Depends(get_current_active_user),
 ):
     """
-    Batch update task order or other attributes like status/project.
-    (Requires a new CRUD function `crud.reorder_tasks` and Task model to have an `order` field).
+    Batch update task order, status, or project.
     """
-    # TODO: Implement crud.reorder_tasks(db, reorder_items, user_id)
-    # This function would iterate through items, verify ownership of each task,
-    # and update its order field (or other relevant fields).
-    # It should be an atomic operation if possible or handle rollbacks.
-    raise HTTPException(status_code=501, detail="Task reordering not yet implemented.")
-    # updated_tasks = await crud.reorder_tasks(db, items=reorder_items, user_id=current_user.id)
-    # return updated_tasks
+    try:
+        updated_tasks = crud.reorder_tasks(db=db, reorder_items=reorder_items, user_id=current_user.id)
+        return updated_tasks
+    except Exception as e:
+        # Catch specific exceptions from CRUD if defined, or a general one
+        # For example, if crud.reorder_tasks raises ValueError for not found items:
+        if "not found or user does not have access" in str(e) or "not found or user does not have access" in str(e): # Basic check
+             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        elif "Project with id" in str(e) and "not found" in str(e):
+             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        # Generic error for other issues during reorder
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error reordering tasks: {str(e)}")
 
 
 # --- Task-Tag Association Endpoints ---

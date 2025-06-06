@@ -33,16 +33,15 @@ async def read_user_projects(
     current_user: models.User = Depends(get_current_active_user),
 ):
     """
-    Retrieve all projects for the current user, with optional filtering.
-    Note: `crud.get_projects_by_user` would need to be updated to handle the `archived` filter.
+    Retrieve all projects for the current user, with optional filtering by archived status.
     """
-    # TODO: Update crud.get_projects_by_user to accept and filter by 'archived' status
-    # For now, this parameter is illustrative.
-    # Example of how it might be passed if crud layer supports it:
-    # projects = crud.get_projects_by_user(db, user_id=current_user.id, archived=archived, skip=skip, limit=limit)
-    projects = crud.get_projects_by_user(db, user_id=current_user.id, skip=skip, limit=limit)
-    if archived is not None: # Manual filter until CRUD is updated
-        projects = [p for p in projects if hasattr(p, 'archived') and p.archived == archived]
+    projects = crud.get_projects_by_user(
+        db,
+        user_id=current_user.id,
+        archived=archived,
+        skip=skip,
+        limit=limit
+    )
     return projects
 
 @router.get("/{project_id}", response_model=schemas.Project)
