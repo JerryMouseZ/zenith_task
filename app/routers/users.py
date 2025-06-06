@@ -8,14 +8,23 @@ from ..dependencies import get_db, get_current_active_user
 from ..core.security import verify_password # verify_password might not be needed here if crud.update_password handles it
 
 router = APIRouter(
-    prefix="/api/users", # Standard prefix
     tags=["users"],
     # Removed router-level dependency to apply it more granularly
     responses={404: {"description": "Not found"}},
 )
 
+@router.get("/me", response_model=schemas.User)
+async def read_current_user_me(
+    current_user: models.User = Depends(get_current_active_user)
+):
+    """
+    Get current logged-in user's details.
+    """
+    return current_user
+
 # Note: The following two endpoints (get all users, get user by ID) are often admin-restricted.
 # They are kept here from the original file but would need proper authorization in a full app.
+# IMPORTANT: Define specific paths like "/me" BEFORE general paths like "/{user_id}".
 @router.get("/", response_model=List[schemas.User], dependencies=[Depends(get_current_active_user)]) # Example: admin only
 async def read_users_list(
     skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
@@ -42,11 +51,15 @@ async def read_user_by_id(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return db_user
 
-
-@router.get("/me", response_model=schemas.User)
-async def read_current_user_me(
-    current_user: models.User = Depends(get_current_active_user)
-):
+# Original position of /me was here. Moved it up.
+# @router.get("/me", response_model=schemas.User)
+# async def read_current_user_me(
+#     current_user: models.User = Depends(get_current_active_user)
+# ):
+#     """
+#     Get current logged-in user's details.
+#     """
+#     return current_user
     """
     Get current logged-in user's details.
     """

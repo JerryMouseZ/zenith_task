@@ -2,6 +2,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional, Dict, Any
 import datetime
+from datetime import date, time # Ensure date and time types are available for type hints
 import enum
 
 # --- Enums (mirroring those in models.py for consistency in API contracts) ---
@@ -67,8 +68,8 @@ class ProjectCreate(ProjectBase):
 
 class TaskCreate(TaskBase): # Inherits new fields from TaskBase
     project_id: int = Field(..., example=1)
-    # assignee_id can be added here if it's set at creation
     assignee_id: Optional[int] = Field(None, example=1)
+    completed: Optional[bool] = Field(False, example=False) # Allow setting completed status on creation, defaults to False
 
 
 class TagCreate(TagBase):
@@ -413,7 +414,7 @@ AIDecomposeTaskResponse.update_forward_refs()
 # Example values are provided for most fields.
 # Constraints are applied using `Field`.
 # Enums are correctly defined and used.
-from datetime import date, time # Added for AI Schemas
+# from datetime import date, time # Moved to top
 
 # Python's `enum` and `datetime` are correctly imported and used.
 # `pydantic.EmailStr` is used for email validation.

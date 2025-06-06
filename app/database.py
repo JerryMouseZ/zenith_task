@@ -2,19 +2,20 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
+import os
 
 # Define the SQLite database URL
 # For SQLite, `check_same_thread` is needed because SQLite by default only allows one thread to communicate with it,
 # assuming that each thread would open its own database connection. FastAPI, being asynchronous, can have multiple
 # threads interacting with the database in the same request, so this argument is necessary for SQLite.
 # For other databases like PostgreSQL, you wouldn't need `connect_args={"check_same_thread": False}`.
-SQLALCHEMY_DATABASE_URL = "sqlite:///./zenithtask.db"
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./zenithtask.db")
 # Example for PostgreSQL:
 # SQLALCHEMY_DATABASE_URL = "postgresql://user:password@host:port/dbname"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}, # Only for SQLite
+    connect_args={"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}, # Only for SQLite
     # echo=True # Set to True to log all SQL statements issued by SQLAlchemy, useful for debugging
 )
 
@@ -73,3 +74,13 @@ def create_db_and_tables():
 # and `models.py` also imported something from `database.py` (like `Base` itself).
 # The current structure where `models.py` imports `Base` from `database.py` and `database.py`
 # imports `models` inside a function is a good way to manage this.
+
+def get_test_db_engine():
+    """
+    Returns a new SQLAlchemy engine configured for an in-memory SQLite database.
+    This is intended for use in testing environments.
+    """
+    return create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False}, # Required for SQLite
+    )

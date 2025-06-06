@@ -1,5 +1,5 @@
 # Task management router
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import datetime # Added import
@@ -8,7 +8,6 @@ from .. import crud, schemas, models
 from ..dependencies import get_db, get_current_active_user
 
 router = APIRouter(
-    prefix="/api/tasks", # Standard prefix
     tags=["tasks"],
     dependencies=[Depends(get_current_active_user)], # All task routes require an active user
     responses={404: {"description": "Not found"}},
@@ -233,9 +232,9 @@ async def add_tag_to_a_task(
         task_exists = crud.get_task(db, task_id=task_id, user_id=current_user.id)
         if not task_exists:
              raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found or not accessible.")
-        tag_exists = crud.get_tag(db, tag_id=tag_id) # Assuming global tags, no user_id needed for get_tag
+        tag_exists = crud.get_tag(db, tag_id=tag_id, user_id=current_user.id) # Pass user_id
         if not tag_exists:
-             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found.")
+             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tag not found or not accessible to user.")
         # If both exist but linking failed for other reasons (e.g. already linked and crud handles it silently)
         # or if add_tag_to_task returns None because it couldn't find the task (already checked by task_exists)
         # For now, a generic error if updated_task is None after checks.

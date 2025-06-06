@@ -2,6 +2,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from typing import List, Optional, Type, TypeVar
+import enum # Added for enum instance check
 from . import models, schemas
 from .core.security import get_password_hash, verify_password # Added verify_password
 import datetime
@@ -144,6 +145,9 @@ def get_tasks(
     due_date_before: Optional[datetime.datetime] = None,
     due_date_after: Optional[datetime.datetime] = None,
     priority: Optional[int] = None,
+    parent_task_id: Optional[int] = None,  # Added missing parameter
+    is_recurring: Optional[bool] = None,   # Added missing parameter
+    tags: Optional[List[int]] = None,      # Added missing parameter (list of tag IDs)
     skip: int = 0,
     limit: int = 100
 ) -> List[models.Task]:
@@ -354,8 +358,10 @@ def get_focus_sessions(
     query = db.query(models.FocusSession).filter(models.FocusSession.user_id == user_id)
     if task_id is not None:
         query = query.filter(models.FocusSession.task_id == task_id)
-    if status is not None:
-        query = query.filter(models.FocusSession.status == status)
+    if status is not None: # status is schemas.FocusSessionStatus
+        # Convert the schema enum's value to the model's enum member for filtering
+        model_status_enum = models.FocusSessionStatus(status.value)
+        query = query.filter(models.FocusSession.status == model_status_enum)
     if start_time_after is not None:
         query = query.filter(models.FocusSession.start_time >= start_time_after)
     if start_time_before is not None:
@@ -363,14 +369,40 @@ def get_focus_sessions(
     return query.order_by(models.FocusSession.start_time.desc()).offset(skip).limit(limit).all()
 
 def create_focus_session(db: Session, session_create: schemas.FocusSessionCreate, user_id: int) -> models.FocusSession:
-    db_session = models.FocusSession(**session_create.dict(), user_id=user_id)
-    db.add(db_session)
+    db_session_data = session_create.dict(exclude={'duration_minutes'})
+    # Convert Pydantic enum value (which is already the .value) to the model's enum type
+    if db_session_data.get("status") is not None:
+        try:
+            # Pydantic schema FocusSessionStatus is (str, enum.Enum), so .dict() gives the string value.
+            status_value = db_session_data["status"]
+            db_session_data["status"] = models.FocusSessionStatus(status_value) # Use model's enum
+        except ValueError: # Handle case where the value might not be valid for the model's enum
+            raise ValueError(f"Invalid status value: {status_value}")
+
+    db_session_obj = models.FocusSession(**db_session_data, user_id=user_id)
+    db.add(db_session_obj)
     db.commit()
-    db.refresh(db_session)
-    return db_session
+    db.refresh(db_session_obj) # Corrected variable name
+    return db_session_obj     # Corrected variable name
 
 def update_focus_session(db: Session, db_session: models.FocusSession, session_update: schemas.FocusSessionUpdate) -> models.FocusSession:
-    db_session = update_db_object(db_session, session_update)
+    update_data_dict = session_update.dict(exclude_unset=True)
+    if "status" in update_data_dict and update_data_dict["status"] is not None:
+        try:
+            status_value = update_data_dict["status"]
+            # If status_value is already the raw value from Pydantic schema (e.g. "completed")
+            update_data_dict["status"] = models.FocusSessionStatus(status_value)
+        except ValueError:
+             raise ValueError(f"Invalid status value for update: {status_value}")
+
+    # Re-create a Pydantic model from the modified dict to pass to update_db_object
+    # This is a bit indirect; a more direct approach might involve modifying update_db_object
+    # or setattr directly here for enum fields. For now, let's try this.
+    # Alternative: setattr directly for enum, and pass rest to update_db_object.
+    for key, value in update_data_dict.items():
+        setattr(db_session, key, value)
+
+    # db_session = update_db_object(db_session, schemas.FocusSessionUpdate(**update_data_dict)) # This would re-validate if needed
     db.commit()
     db.refresh(db_session)
     return db_session
@@ -399,8 +431,10 @@ def get_energy_logs(
     limit: int = 100
 ) -> List[models.EnergyLog]:
     query = db.query(models.EnergyLog).filter(models.EnergyLog.user_id == user_id)
-    if energy_level is not None:
-        query = query.filter(models.EnergyLog.energy_level == energy_level)
+    if energy_level is not None: # energy_level is schemas.EnergyLevel
+        # Convert the schema enum's value to the model's enum member for filtering
+        model_energy_level_enum = models.EnergyLevel(energy_level.value)
+        query = query.filter(models.EnergyLog.energy_level == model_energy_level_enum)
     if timestamp_after is not None:
         query = query.filter(models.EnergyLog.timestamp >= timestamp_after)
     if timestamp_before is not None:
@@ -408,14 +442,35 @@ def get_energy_logs(
     return query.order_by(models.EnergyLog.timestamp.desc()).offset(skip).limit(limit).all()
 
 def create_energy_log(db: Session, log_create: schemas.EnergyLogCreate, user_id: int) -> models.EnergyLog:
-    db_log = models.EnergyLog(**log_create.dict(), user_id=user_id)
+    db_log_data = log_create.dict(exclude={'source'})
+    # Convert Pydantic enum value (which is already the .value) to the model's enum type
+    if db_log_data.get("energy_level") is not None:
+        try:
+            # Pydantic schema EnergyLevel is (int, enum.Enum), so .dict() gives the int value.
+            energy_level_value = db_log_data["energy_level"]
+            db_log_data["energy_level"] = models.EnergyLevel(energy_level_value) # Use model's enum
+        except ValueError: # Handle case where the value might not be valid for the model's enum
+            raise ValueError(f"Invalid energy_level value: {energy_level_value}")
+
+    db_log = models.EnergyLog(**db_log_data, user_id=user_id)
     db.add(db_log)
     db.commit()
     db.refresh(db_log)
     return db_log
 
 def update_energy_log(db: Session, db_log: models.EnergyLog, log_update: schemas.EnergyLogUpdate) -> models.EnergyLog:
-    db_log = update_db_object(db_log, log_update)
+    update_data_dict = log_update.dict(exclude_unset=True)
+    if "energy_level" in update_data_dict and update_data_dict["energy_level"] is not None:
+        try:
+            energy_level_value = update_data_dict["energy_level"]
+            update_data_dict["energy_level"] = models.EnergyLevel(energy_level_value)
+        except ValueError:
+            raise ValueError(f"Invalid energy_level value for update: {energy_level_value}")
+
+    for key, value in update_data_dict.items():
+        setattr(db_log, key, value)
+
+    # db_log = update_db_object(db_log, schemas.EnergyLogUpdate(**update_data_dict))
     db.commit()
     db.refresh(db_log)
     return db_log

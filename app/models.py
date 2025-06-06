@@ -1,5 +1,5 @@
 # SQLAlchemy models for database tables
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, REAL, JSON, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, REAL, JSON, Enum, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from .database import Base
 import datetime

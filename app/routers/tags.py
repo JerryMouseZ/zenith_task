@@ -8,7 +8,6 @@ from .. import crud, schemas, models
 from ..dependencies import get_db, get_current_active_user
 
 router = APIRouter(
-    prefix="/api/tags",
     tags=["tags"],
     dependencies=[Depends(get_current_active_user)],
     responses={404: {"description": "Not found"}},
